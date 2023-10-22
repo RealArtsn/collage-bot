@@ -28,6 +28,19 @@ except FileExistsError:
 # logging handler
 bot.log_handler = logging.FileHandler(filename=f'logs/{datetime.now().strftime("%y%m%d%H%M%S")}_discord.log', encoding='utf-8', mode='w')
 
+# collage slash command
+@bot.tree.command(name = "collage", description = "View or paste image in server collage.")
+@app_commands.choices(stretch=[
+    app_commands.Choice(name = 'True', value='True'),
+    app_commands.Choice(name = 'False', value='')
+    ])
+async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None, stretch: app_commands.Choice[str] = ''):
+    if not image_url or attachment:
+        image_path = f'resources/{interaction.guild.id}_collage.png'
+        if not os.path.exists(image_path):
+            image_path = 'resources/blank_canvas.png'
+        await interaction.response.send_message(file=discord.File(image_path))
+
 # Run with token or prompt if one does not exist
 try:
     with open('token', 'r') as token:
