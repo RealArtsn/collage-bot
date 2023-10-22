@@ -2,6 +2,9 @@ import discord
 from discord import app_commands
 import logging, sys, os
 from datetime import datetime
+from PIL import Image
+import urllib.request as urllib
+import io
 
 class Client(discord.Client):
     async def on_ready(self):
@@ -35,11 +38,40 @@ bot.log_handler = logging.FileHandler(filename=f'logs/{datetime.now().strftime("
     app_commands.Choice(name = 'False', value='')
     ])
 async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None, stretch: app_commands.Choice[str] = ''):
-    if not image_url or attachment:
-        image_path = f'resources/{interaction.guild.id}_collage.png'
-        if not os.path.exists(image_path):
-            image_path = 'resources/blank_canvas.png'
-        await interaction.response.send_message(file=discord.File(image_path))
+    # get path to current background image
+    guild_canvas_path = f'resources/{interaction.guild.id}_collage.png'
+    # use blank canvas if guild canvas does not exist
+    if not os.path.exists(guild_canvas_path):
+        old_canvas_path = 'resources/blank_canvas.png'
+    else:
+        old_canvas_path = guild_canvas_path
+    # send canvas and return if no attached image
+    if not image_url and not attachment:
+        await interaction.response.send_message(file=discord.File(old_canvas_path))
+        return
+    # place image on collage from image url
+    if attachment and not image_url:
+        image_url = attachment.url
+        print(image_url)
+    
+    image_pil = pil_from_url(image_url)
+    place_image(image_pil, guild_canvas_path, stretch)
+    await interaction.response.send_message(file=discord.File(guild_canvas_path))
+
+# retrieve pillow image from url
+def pil_from_url(image_url):
+    hdr = {'User-Agent':'Mozilla/5.0'}
+    req = urllib.Request(image_url,headers=hdr)
+    fd = urllib.urlopen(req)
+    image_file = io.BytesIO(fd.read())
+    return Image.open(image_file)
+
+# place provided image on top of the canvas
+def place_image(pil_image, canvas_path, stretch):
+    canvas = Image.open(canvas_path)
+    canvas.paste(pil_image)
+    canvas.save(canvas_path)
+    return
 
 # Run with token or prompt if one does not exist
 try:
