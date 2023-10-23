@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
-import logging, sys, os
+from discord.ext import commands, tasks
+import logging, sys, os, asyncio
 from datetime import datetime
 from PIL import Image
 from PIL import UnidentifiedImageError
@@ -15,8 +16,14 @@ class Client(discord.Client):
         # collage slash command
         @self.tree.command(name = "collage", description = "View or paste image in server collage.")
         async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None):
-            await self.handle_interaction(interaction, image_url, attachment)
+            # hold interaction
+            await interaction.response.defer(ephemeral=False)
+            # add to queue
+            self.queue.append((interaction, image_url, attachment))
 
+        # initialize queue
+        self.queue = []
+        
         # initialize a 'busy' variable
         self.busy = False
 
@@ -47,6 +54,14 @@ class Client(discord.Client):
             await self.tree.sync()
             print('Exiting...')
             await self.close()
+        # define queue event loop
+        @tasks.loop(seconds=0.2)
+        async def task(self):
+            if self.busy or (len(self.queue) == 0):
+                return
+            await self.handle_interaction(*self.queue.pop(0))
+        # start queue event loop
+        await task.start(self)
 
     # generate a blank canvas and pass as pil image
     def generate_canvas(self, dimensions=(1920,1080)):
@@ -111,9 +126,6 @@ class Client(discord.Client):
     
     # handle slash command interaction
     async def handle_interaction(self, interaction: discord.Interaction, image_url:str, attachment:discord.Attachment):
-        # defer interaction to prevent errors
-        await interaction.response.defer(ephemeral=False)
-
         # stop interaction if bot is busy
         if self.busy:
             await interaction.followup.send("I'm busy, give me a second.", ephemeral=True)
