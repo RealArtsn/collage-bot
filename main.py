@@ -133,8 +133,13 @@ class Client(discord.Client):
         # mark bot as busy
         self.busy = True
 
-        # get the canvas image
-        canvas = self.get_or_generate_canvas(interaction.guild.id)
+        # get the canvas image or deny if not valid guild
+        try:
+            canvas = self.get_or_generate_canvas(interaction.guild.id)
+        except AttributeError:
+            await interaction.followup.send("Invalid guild.")
+            self.busy = False
+            return
 
         # send canvas and return if no attached image
         if not image_url and not attachment:
