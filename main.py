@@ -3,8 +3,9 @@ from discord import app_commands
 import logging, sys, os
 from datetime import datetime
 from PIL import Image
+from PIL import UnidentifiedImageError
 import urllib.request as urllib
-import io
+import io, random
 
 class Client(discord.Client):
     async def on_ready(self):
@@ -33,11 +34,7 @@ bot.log_handler = logging.FileHandler(filename=f'logs/{datetime.now().strftime("
 
 # collage slash command
 @bot.tree.command(name = "collage", description = "View or paste image in server collage.")
-@app_commands.choices(stretch=[
-    app_commands.Choice(name = 'True', value='True'),
-    app_commands.Choice(name = 'False', value='')
-    ])
-async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None, stretch: app_commands.Choice[str] = ''):
+async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None):
     # get path to current background image
     guild_canvas_path = f'resources/{interaction.guild.id}_collage.png'
     # use blank canvas if guild canvas does not exist
@@ -54,9 +51,17 @@ async def slash(interaction:discord.Interaction, image_url: str = None, attachme
         image_url = attachment.url
         print(image_url)
     
-    image_pil = pil_from_url(image_url)
-    place_image(image_pil, guild_canvas_path, stretch)
+    try:
+        image_pil = pil_from_url(image_url)
+    except (ValueError, UnidentifiedImageError):
+        await interaction.response.send_message('Invalid URL', ephemeral=True)
+        return
+    place_image(image_pil, guild_canvas_path)
     await interaction.response.send_message(file=discord.File(guild_canvas_path))
+    message = await discord.utils.get(interaction.channel.history(), author__id=bot.user.id)
+    
+    with open(f'resources/{interaction.guild.id}_images.txt', 'a') as f:
+        f.write(message.attachments[0].url.split('?')[0] + '\n')
 
 # retrieve pillow image from url
 def pil_from_url(image_url):
@@ -67,11 +72,31 @@ def pil_from_url(image_url):
     return Image.open(image_file)
 
 # place provided image on top of the canvas
-def place_image(pil_image, canvas_path, stretch):
-    canvas = Image.open(canvas_path)
-    canvas.paste(pil_image)
+def place_image(pil_image, canvas_path):
+    TEMPLATE_PATH = 'resources/blank_canvas.png'
+    canvas = Image.open(canvas_path if os.path.exists(canvas_path) else TEMPLATE_PATH)
+    resize_image(pil_image, random.random() * calc_max_scale(canvas, pil_image)) #helpo
+    canvas.paste(pil_image, find_random_place(canvas, pil_image))
     canvas.save(canvas_path)
     return
+
+# calculate the maximum length/height of placed image
+def calc_max_scale(canvas, image, ratio=0.4):
+    max_scale = [0,0]
+    for i in range(2):
+        max_scale[i] = (canvas.size[i] * ratio) / image.size[i]
+    return min(max_scale)
+    
+# resize image by scalar
+def resize_image(pil_image, scale):
+    new_size = (side * scale for side in pil_image.size)
+    pil_image.thumbnail(new_size, Image.Resampling.LANCZOS)
+
+# find random coordinate on canvas for image placement
+def find_random_place(canvas, image):
+    x = random.randint(0, canvas.size[0] - image.size[0])
+    y = random.randint(0, canvas.size[1] - image.size[1])
+    return (x, y)
 
 # Run with token or prompt if one does not exist
 try:
