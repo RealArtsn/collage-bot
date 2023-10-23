@@ -23,6 +23,9 @@ bot = Client(intents=discord.Intents.default())
 # set up slash command tree
 bot.tree = app_commands.CommandTree(bot)
 
+# initialize a 'busy' variable
+bot.busy = False
+
 # create log directory if not exists
 try:
     os.mkdir('logs')
@@ -35,6 +38,12 @@ bot.log_handler = logging.FileHandler(filename=f'logs/{datetime.now().strftime("
 # collage slash command
 @bot.tree.command(name = "collage", description = "View or paste image in server collage.")
 async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None):
+    # stop interaction if bot is busy
+    if bot.busy:
+        await interaction.response.send_message("I'm busy, give me a second.", ephemeral=True)
+        return
+    # mark bot as busy
+    bot.busy = True
     # get path to current background image
     guild_canvas_path = f'resources/{interaction.guild.id}_collage.png'
     # use blank canvas if guild canvas does not exist
@@ -45,6 +54,7 @@ async def slash(interaction:discord.Interaction, image_url: str = None, attachme
     # send canvas and return if no attached image
     if not image_url and not attachment:
         await interaction.response.send_message(file=discord.File(old_canvas_path))
+        bot.busy = False
         return
     # place image on collage from image url
     if attachment and not image_url:
@@ -62,6 +72,8 @@ async def slash(interaction:discord.Interaction, image_url: str = None, attachme
     
     with open(f'resources/{interaction.guild.id}_images.txt', 'a') as f:
         f.write(message.attachments[0].url.split('?')[0] + '\n')
+    # mark bot as no longer busy
+    bot.busy = False
 
 # retrieve pillow image from url
 def pil_from_url(image_url):
