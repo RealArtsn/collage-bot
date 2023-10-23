@@ -78,7 +78,7 @@ class Client(discord.Client):
         req = urllib.Request(image_url,headers=hdr)
         fd = urllib.urlopen(req)
         image_file = io.BytesIO(fd.read())
-        return Image.open(image_file)
+        return Image.open(image_file).convert('RGBA')
 
     # place provided image on top of the canvas
     def place_image(self, pil_image: Image.Image, canvas: Image.Image):
