@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-import logging, sys, os, asyncio
+import logging, sys, os
 from datetime import datetime
 from PIL import Image
 from PIL import UnidentifiedImageError
@@ -83,7 +83,7 @@ class Client(discord.Client):
     # place provided image on top of the canvas
     def place_image(self, pil_image: Image.Image, canvas: Image.Image):
         self.resize_image(pil_image, random.random() * self.calc_max_scale(canvas, pil_image))
-        canvas.paste(pil_image, self.find_random_place(canvas, pil_image))
+        canvas.paste(pil_image, self.find_random_place(canvas, pil_image), pil_image)
         return canvas
 
     # convert PIL image to discord file
