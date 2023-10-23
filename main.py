@@ -149,6 +149,7 @@ class Client(discord.Client):
             image_pil = self.pil_from_url(image_url)
         except (ValueError, UnidentifiedImageError):
             await interaction.followup.send('Invalid URL', ephemeral=True)
+            self.busy = False
             return
         
         # place provided image on the canvas and send
