@@ -38,9 +38,12 @@ bot.log_handler = logging.FileHandler(filename=f'logs/{datetime.now().strftime("
 # collage slash command
 @bot.tree.command(name = "collage", description = "View or paste image in server collage.")
 async def slash(interaction:discord.Interaction, image_url: str = None, attachment:discord.Attachment = None):
+    # defer interaction to prevent errors
+    await interaction.response.defer(ephemeral=False)
+
     # stop interaction if bot is busy
     if bot.busy:
-        await interaction.response.send_message("I'm busy, give me a second.", ephemeral=True)
+        await interaction.followup.send("I'm busy, give me a second.", ephemeral=True)
         return
     # mark bot as busy
     bot.busy = True
@@ -53,7 +56,7 @@ async def slash(interaction:discord.Interaction, image_url: str = None, attachme
         old_canvas_path = guild_canvas_path
     # send canvas and return if no attached image
     if not image_url and not attachment:
-        await interaction.response.send_message(file=discord.File(old_canvas_path))
+        await interaction.followup.send(file=discord.File(old_canvas_path))
         bot.busy = False
         return
     # place image on collage from image url
@@ -64,16 +67,17 @@ async def slash(interaction:discord.Interaction, image_url: str = None, attachme
     try:
         image_pil = pil_from_url(image_url)
     except (ValueError, UnidentifiedImageError):
-        await interaction.response.send_message('Invalid URL', ephemeral=True)
+        await interaction.followup.send('Invalid URL', ephemeral=True)
         return
     place_image(image_pil, guild_canvas_path)
-    await interaction.response.send_message(file=discord.File(guild_canvas_path))
+    await interaction.followup.send(file=discord.File(guild_canvas_path))
     message = await discord.utils.get(interaction.channel.history(), author__id=bot.user.id)
     
     with open(f'resources/{interaction.guild.id}_images.txt', 'a') as f:
         f.write(message.attachments[0].url.split('?')[0] + '\n')
     # mark bot as no longer busy
     bot.busy = False
+    return
 
 # retrieve pillow image from url
 def pil_from_url(image_url):
