@@ -158,7 +158,12 @@ class Client(discord.Client):
             return
         
         # place provided image on the canvas and send
-        self.place_image(image_pil, canvas)
+        try:
+            self.place_image(image_pil, canvas)
+        except Exception as e:
+            await interaction.followup.send(f'Uh oh! {e}')
+            self.busy = False
+            return
         await interaction.followup.send(file=self.pil_to_discord(canvas, f'{self.generate_timestamp()}_{interaction.guild_id}_canvas.png'))
 
         # retrieve message sent by bot
